@@ -1,0 +1,48 @@
+"Resources": {
+  "MyInstance":{
+    "Type": "AWS::EC2::Instance",
+    "Metadata": {
+      "AWS::CloudFormation::Init": {
+        "config": {
+          "packages" : {
+             "rpm" : {
+               "epel" : "http://download.fedoraproject.org/pub/epel/5/i386/epel-release-5-4.noarch.rpm"
+             },
+             "yum" : {
+               "httpd" : [],
+               "php" : [],
+               "cassandra" : [],
+               "elasticsearch" : [],
+               "varnish" : []
+             }
+          },
+          "groups" : {
+            "sysadmin" : {}
+          },
+          "users" : {
+            "vgm" : {
+              "groups" : ["sysadmin", "apache"],
+              "uid" : "501",
+              "homeDir" : "/home/vgm"
+            }
+          },
+          "sources" : {
+            :
+          },
+          "files" : {
+            :
+          },
+          "commands" : {
+            :
+          },
+          "services" : {
+            :
+          }
+        }
+      },
+      "Properties" : {
+        :
+      }
+    }
+  }
+}

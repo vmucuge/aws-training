@@ -1,0 +1,250 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description": "Creates A Puppet Master Server instance",
+
+  "Parameters" : {
+    "InstanceType" : {
+      "Description" : "EC2 instance type",
+      "Type" : "String",
+      "Default" : "m1.small",
+      "AllowedValues" : [
+        "t1.micro",
+        "m1.small",
+        "m1.medium",
+        "m1.large",
+        "m1.xlarge",
+        "m2.xlarge",
+        "m2.2xlarge",
+        "m2.4xlarge",
+        "m3.xlarge",
+        "m3.2xlarge",
+        "c1.medium",
+        "c1.xlarge",
+        "cc1.4xlarge",
+        "cc2.8xlarge",
+        "cg1.4xlarge"],
+      "ConstraintDescription" : "must be a valid EC2 instance type."
+    },
+
+    "KeyName" : {
+      "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the PuppetMaster",
+      "Type" : "String"
+    },
+
+    "Environment": {
+      "Description":"Environment this puppet master will serve",
+      "Type":"String",
+      "Default":"qa"
+    },
+
+    "SSHLocation": {
+      "Description": "Groupalia Office BCN Public IP Address",
+      "Type": "String",
+      "MinLength": "9",
+      "MaxLength": "18",
+      "Default": "91.126.128.66/32",
+      "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription": "must be a valid IP CIDR range of the form x.x.x.x/x."
+    }
+
+  },
+
+
+  "Mappings" : {
+    "AWSInstanceType2Arch" : {
+      "t1.micro"    : { "Arch" : "64" },
+      "m1.small"    : { "Arch" : "64" },
+      "m1.medium"   : { "Arch" : "64" },
+      "m1.large"    : { "Arch" : "64" },
+      "m1.xlarge"   : { "Arch" : "64" },
+      "m2.xlarge"   : { "Arch" : "64" },
+      "m2.2xlarge"  : { "Arch" : "64" },
+      "m2.4xlarge"  : { "Arch" : "64" },
+      "m3.xlarge"   : { "Arch" : "64" },
+      "m3.2xlarge"  : { "Arch" : "64" },
+      "c1.medium"   : { "Arch" : "64" },
+      "c1.xlarge"   : { "Arch" : "64" }
+    },
+
+    "AWSRegionArch2AMI" : {
+      "us-east-1"      : { "64" : "ami-05355a6c" },
+      "eu-west-1"      : { "64" : "ami-c7c0d6b3" }
+    }
+  },
+
+  "Resources" : {
+
+    "PuppetMasterInstance" : {
+
+      "Type" : "AWS::EC2::Instance",
+
+      "Metadata" : {
+        "AWS::CloudFormation::Init" : {
+          "config" : {
+            "packages" : {
+              "yum" : {
+                "puppet"        : [],
+                "puppet-server" : [],
+                "ruby-devel"    : [],
+                "gcc"           : [],
+                "make"          : [],
+                "rubygems"      : []
+              },
+              "rubygems" : {
+                "json"          : []
+              }
+            },
+            "files" : {
+              "/etc/yum.repos.d/epel.repo" : {
+                "source" : "https://s3.amazonaws.com/cloudformation-examples/enable-epel-on-amazon-linux-ami",
+                "mode"   : "000644",
+                "owner"  : "root",
+                "group"  : "root"
+              },
+              "/etc/puppet/autosign.conf" : {
+                "content" : "*.internal\n",
+                "mode"    : "100644",
+                "owner"   : "root",
+                "group"   : "wheel"
+              },
+              "/etc/puppet/environments" : {
+                "ensure"  : "directory",
+                "mode"    : "100644",
+                "owner"   : "root",
+                "group"   : "wheel"
+              },
+              "/etc/puppet/fileserver.conf" : {
+                "content" : "[modules]\n   allow *.internal\n",
+                "mode"    : "100644",
+                "owner"   : "root",
+                "group"   : "wheel"
+              },
+              "/etc/puppet/puppet.conf" : {
+                "content" : { "Fn::Join" : ["", [
+                  "[main]\n",
+                  "   logdir=/var/log/puppet\n",
+                  "   rundir=/var/run/puppet\n",
+                  "   ssldir=$vardir/ssl\n",
+                  "   pluginsync=true\n",
+                  "[agent]\n",
+                  "   classfile=$vardir/classes.txt\n",
+                  "   localconfig=$vardir/localconfig\n",
+                  "[master]\n",
+                  "environment = $environment\n",
+                  "environmentpath = $confdir/environments\n"
+                ]] },
+                "mode"    : "000644",
+                "owner"   : "root",
+                "group"   : "root"
+              },
+              "/etc/puppet/modules/cfn/manifests/init.pp" : {
+                "content" : "class cfn {}",
+                "mode"    : "100644",
+                "owner"   : "root",
+                "group"   : "wheel"
+              },
+              "/etc/puppet/modules/cfn/lib/facter/cfn.rb" : {
+                "source"  : "https://s3.amazonaws.com/cloudformation-examples/cfn-facter-plugin.rb",
+                "mode"    : "100644",
+                "owner"   : "root",
+                "group"   : "wheel"
+              },
+              "/etc/puppet/manifests/nodes.pp" : {
+                "content" : {"Fn::Join" : ["", [
+                  "node basenode {\n",
+                  "  include cfn\n",
+                  "}\n",
+                  "node /^.*internal$/ inherits basenode {\n",
+                  "  case $cfn_roles {\n",
+                  "    ", "base", "\n",
+                  "  }\n",
+                  "}\n"]]},
+                "mode"    : "100644",
+                "owner"   : "root",
+                "group"   : "wheel"
+              },
+              "/etc/puppet/manifests/site.pp" : {
+                "content" : "import \"nodes\"\n",
+                "mode"    : "100644",
+                "owner"   : "root",
+                "group"   : "wheel"
+              }
+            },
+            "services" : {
+              "sysvinit" : {
+                "puppetmaster" : {
+                  "enabled" : "true",
+                  "ensureRunning" : "true"
+                }
+              }
+            }
+          }
+        }
+      },
+
+      "Properties" : {
+        "Tags": [
+          {"Key":"environment","Value":{"Ref":"Environment"}},
+          {"Key":"Name","Value":{"Fn::Join":["",[{"Ref":"Environment"},"-puppet-master"]]}},
+          {"Key":"role","Value":"puppet-master"}
+        ],
+        "InstanceType" : { "Ref" : "InstanceType" },
+
+        "SecurityGroups" : [ "PPMasterSecurityGroup" ],
+
+        "ImageId" : { "Fn::FindInMap" : [ "AWSRegionArch2AMI", { "Ref" : "AWS::Region" }, { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "InstanceType" }, "Arch" ] } ] },
+        "KeyName" : { "Ref" : "KeyName" },
+
+        "UserData" : { "Fn::Base64" : { "Fn::Join" : ["", [
+          "#!/bin/bash\n",
+          "yum update -y aws-cfn-bootstrap\n",
+          "/opt/aws/bin/cfn-init --region ", { "Ref" : "AWS::Region" }," -s ", { "Ref" : "AWS::StackId" }, " -r PuppetMasterInstance ", "\n",
+          "/opt/aws/bin/cfn-signal -e $? '", { "Ref" : "PuppetMasterWaitHandle" }, "'\n",
+          "mkdir /etc/puppet/environments\n"
+        ]]}}
+      }
+    },
+
+    "EC2SecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Group for clients to communicate with Puppet Master"
+      }
+    },
+
+    "PPMasterSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Enable SSH access and HTTP from the load balancer only",
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": {"Ref": "SSHLocation"}
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "80",
+            "ToPort": "80",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ]
+      }
+    },
+
+    "PuppetMasterWaitHandle" : {
+      "Type" : "AWS::CloudFormation::WaitConditionHandle"
+    },
+
+    "PuppetMasterWaitCondition" : {
+      "Type" : "AWS::CloudFormation::WaitCondition",
+      "DependsOn" : "PuppetMasterInstance",
+      "Properties" : {
+        "Handle" : { "Ref" : "PuppetMasterWaitHandle" },
+        "Timeout" : "600"
+      }
+    }
+  }
+}

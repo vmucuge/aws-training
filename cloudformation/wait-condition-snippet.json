@@ -1,0 +1,23 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Wait Condition and Handle.",
+
+  "Resources": {
+    "WaitHandle": {
+      "Type": "AWS::CloudFormation::WaitConditionHandle",
+      "Properties": {
+      }
+    },
+    "WaitCondition": {
+      "Type": "AWS::Cloudformation::WaitCondition",
+      "DependsOn": "WebServerASGroup",
+      "Properties": {
+        "Handle": {"Ref": "WaitHandle"},
+        "Timeout": "10500"
+      }
+    }
+  }
+}
+
+
+

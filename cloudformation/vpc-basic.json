@@ -1,0 +1,1214 @@
+{
+
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "AWS VPC GROUPALIA Clouformation Snippet - QA Version 1",
+
+  "Parameters": {
+    "KeyName": {
+      "Description": "Key Pair used to launch the NAT instance.",
+      "Type": "String",
+      "Default": "sysops",
+      "MinLength": "1",
+      "MaxLength": "64",
+      "AllowedPattern": "[-_ a-zA-Z0-9]*",
+      "ConstraintDescription": "Can contain only alphanumeric characters, spaces, dashes and underscores"
+    },
+
+    "NatInstanceType": {
+      "Type": "String",
+      "Default": "m1.medium",
+      "Description": "EC2 instance type for the NAT instance , e.g. m1.small, m1.large, etc. Note: Instance rates apply.",
+      "AllowedValues": [
+        "m1.small",
+        "m1.medium",
+        "m1.large",
+        "m1.xlarge",
+        "m2.xlarge",
+        "m2.2xlarge",
+        "m2.4xlarge",
+        "c1.medium",
+        "c1.xlarge"
+      ],
+      "ConstraintDescription": "Must be a valid EC2 NAT instance type."
+    },
+
+    "WebServerInstanceType": {
+      "Description": "WebServer EC2 instance type",
+      "Type": "String",
+      "Default": "m1.medium",
+      "AllowedValues": [
+        "t1.micro",
+        "t2.micro",
+        "t2.small",
+        "t2.medium",
+        "m1.small",
+        "m1.medium",
+        "m1.large",
+        "m1.xlarge",
+        "m2.xlarge",
+        "m2.2xlarge",
+        "m2.4xlarge",
+        "m3.medium",
+        "m3.large",
+        "m3.xlarge",
+        "m3.2xlarge",
+        "c1.medium",
+        "c1.xlarge",
+        "c3.large",
+        "c3.xlarge",
+        "c3.2xlarge",
+        "c3.4xlarge",
+        "c3.8xlarge",
+        "g2.2xlarge",
+        "r3.large",
+        "r3.xlarge",
+        "r3.2xlarge",
+        "r3.4xlarge",
+        "r3.8xlarge",
+        "i2.xlarge",
+        "i2.2xlarge",
+        "i2.4xlarge",
+        "i2.8xlarge",
+        "hi1.4xlarge",
+        "hs1.8xlarge",
+        "cr1.8xlarge",
+        "cc2.8xlarge"
+      ],
+      "ConstraintDescription": "must be a valid EC2 instance type."
+    },
+
+    "VpcIpCidrBlock": {
+      "Type": "String",
+      "Default": "172.17.0.0/16",
+      "Description": "The IP CIDR block for the VPC Groupalia - This include all available IP subnets for all the zones in the VPC."
+    },
+
+    "PublicSubnetIpCidrBlock1": {
+      "Type": "String",
+      "Default": "172.17.10.0/24",
+      "Description": "IP CIDR block for the 1st PublicSubnet 172.17.10.0/24 - PUB_SUBNET1"
+    },
+
+    "PublicSubnetIpCidrBlock2": {
+      "Type": "String",
+      "Default": "172.17.20.0/24",
+      "Description": "IP CIDR block for the 2nd Public Subnet 172.17.20.0/24 - PUB_SUBNET2"
+    },
+
+    "PrivateSubnetIpCidrBlock1": {
+      "Type": "String",
+      "Default": "172.17.100.0/24",
+      "Description": "IP CIDR block for the 1st Private Subnet 172.17.100.0/24 - PRIV_SUBNET1"
+    },
+
+    "PrivateSubnetIpCidrBlock2": {
+      "Type": "String",
+      "Default": "172.17.200.0/24",
+      "Description": "IP CIDR block for the 2nd Privat Subnet 172.17.200.0/24 - PRIV_SUBNET2"
+    },
+
+    "DnsPrefix": {
+      "Description": "Prefix for DNS record (<prefix>.<zone>)",
+      "Type": "String",
+      "Default": "qa.groupalia.com.aws"
+    },
+
+    "DnsZone": {
+      "Description": "Route53-hosted zone to use for the DNS record (<prefix>.<zone>)",
+      "Type": "String",
+      "Default": "qa.groupalia.com"
+    },
+
+    "SSHLocation": {
+      "Description": "The IP address range that can be used to SSH to the EC2 instances",
+      "Type": "String",
+      "MinLength": "9",
+      "MaxLength": "18",
+      "Default": "91.126.128.66/32",
+      "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription": "must be a valid IP CIDR range of the form x.x.x.x/x."
+    }
+
+  },
+
+  "Mappings": {
+
+    "AWSInstanceType2Arch": {
+      "t1.micro": {"Arch": "64"},
+      "m1.small": {"Arch": "64"},
+      "m1.medium": {"Arch": "64"},
+      "m1.large": {"Arch": "64"},
+      "m1.xlarge": {"Arch": "64"},
+      "m2.xlarge": {"Arch": "64"},
+      "m2.2xlarge": {"Arch": "64"},
+      "m2.4xlarge": {"Arch": "64"},
+      "c1.medium": {"Arch": "64"},
+      "c1.xlarge": {"Arch": "64"}
+    },
+
+    "AWSRegionArch2AMI": {
+      "us-east-1": {"64": "ami-c6699baf"},
+      "eu-west-1": {"64": "ami-0b5b6c7f"}
+    },
+
+    "AWSInstanceType2ArchWeb": {
+      "t1.micro": {"Arch": "PV64"},
+      "t2.micro": {"Arch": "HVM64"},
+      "t2.small": {"Arch": "HVM64"},
+      "t2.medium": {"Arch": "HVM64"},
+      "m1.small": {"Arch": "PV64"},
+      "m1.medium": {"Arch": "PV64"},
+      "m1.large": {"Arch": "PV64"},
+      "m1.xlarge": {"Arch": "PV64"},
+      "m2.xlarge": {"Arch": "PV64"},
+      "m2.2xlarge": {"Arch": "PV64"},
+      "m2.4xlarge": {"Arch": "PV64"},
+      "m3.medium": {"Arch": "HVM64"},
+      "m3.large": {"Arch": "HVM64"},
+      "m3.xlarge": {"Arch": "HVM64"},
+      "m3.2xlarge": {"Arch": "HVM64"},
+      "c1.medium": {"Arch": "PV64"},
+      "c1.xlarge": {"Arch": "PV64"},
+      "c3.large": {"Arch": "HVM64"},
+      "c3.xlarge": {"Arch": "HVM64"},
+      "c3.2xlarge": {"Arch": "HVM64"},
+      "c3.4xlarge": {"Arch": "HVM64"},
+      "c3.8xlarge": {"Arch": "HVM64"},
+      "g2.2xlarge": {"Arch": "HVMG2"},
+      "r3.large": {"Arch": "HVM64"},
+      "r3.xlarge": {"Arch": "HVM64"},
+      "r3.2xlarge": {"Arch": "HVM64"},
+      "r3.4xlarge": {"Arch": "HVM64"},
+      "r3.8xlarge": {"Arch": "HVM64"},
+      "i2.xlarge": {"Arch": "HVM64"},
+      "i2.2xlarge": {"Arch": "HVM64"},
+      "i2.4xlarge": {"Arch": "HVM64"},
+      "i2.8xlarge": {"Arch": "HVM64"},
+      "hi1.4xlarge": {"Arch": "HVM64"},
+      "hs1.8xlarge": {"Arch": "HVM64"},
+      "cr1.8xlarge": {"Arch": "HVM64"},
+      "cc2.8xlarge": {"Arch": "HVM64"}
+    },
+
+    "AWSRegionArch2AMIWeb": {
+      "us-east-1": {
+        "PV64": "ami-50842d38",
+        "HVM64": "ami-08842d60",
+        "HVMG2": "ami-3a329952"
+      },
+      "eu-west-1": {
+        "PV64": "ami-aa8f28dd",
+        "HVM64": "ami-748e2903",
+        "HVMG2": "ami-00913777"
+      },
+      "eu-central-1": {
+        "PV64": "ami-a03503bd",
+        "HVM64": "ami-b43503a9",
+        "HVMG2": "ami-b03503ad"
+      }
+    },
+
+    "Region2AZ": {
+      "us-east-1": {
+        "AZ1": "us-east-1a",
+        "AZ2": "us-east-1b"
+      },
+      "eu-west-1": {
+        "AZ1": "eu-west-1a",
+        "AZ2": "eu-west-1b"
+      },
+      "eu-central-1": {
+        "AZ1": "eu-central-1a",
+        "AZ2": "eu-central-1b"
+      }
+    }
+
+  },
+
+  "Resources": {
+
+    "VPCGroupalia": {
+      "Type": "AWS::EC2::VPC",
+
+      "Properties": {
+        "CidrBlock": {"Ref": "VpcIpCidrBlock"},
+
+        "EnableDnsSupport": "true",
+
+        "EnableDnsHostnames": "true",
+
+        "InstanceTenancy": "default",
+
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "VPCGroupalia"
+          },
+          {
+            "Key": "Application",
+            "Value": {"Ref": "AWS::StackName"}
+          }
+        ]
+      }
+    },
+
+    "InternetGatewayA": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "InternetGatewayA"
+          },
+          {
+            "Key": "Application",
+            "Value": {"Ref": "AWS::StackName"}
+          }
+        ]
+      }
+    },
+
+    "AttachGatewayA": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "VpcId": {"Ref": "VPCGroupalia"},
+        "InternetGatewayId": {"Ref": "InternetGatewayA"}
+      }
+    },
+
+    "PublicSubnet1": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {"Ref": "VPCGroupalia"},
+        "CidrBlock": {"Ref": "PublicSubnetIpCidrBlock1"},
+        "AvailabilityZone": {
+          "Fn::FindInMap": [
+            "Region2AZ",
+            {"Ref": "AWS::Region"},
+            "AZ1"
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "PublicSubnet1"
+          },
+          {
+            "Key": "Block",
+            "Value": "172.17.10.0/24"
+          },
+          {
+            "Key": "Application",
+            "Value": {"Ref": "AWS::StackName"}
+          },
+          {
+            "Key": "Network",
+            "Value": "Public"
+          }
+        ]
+      }
+    },
+
+    "PublicSubnet2": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {"Ref": "VPCGroupalia"},
+        "CidrBlock": {"Ref": "PublicSubnetIpCidrBlock2"},
+        "AvailabilityZone": {
+          "Fn::FindInMap": [
+            "Region2AZ",
+            {"Ref": "AWS::Region"},
+            "AZ2"
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "PublicSubnet2"
+          },
+          {
+            "Key": "Block",
+            "Value": "172.17.20.0/24"
+          },
+          {
+            "Key": "Application",
+            "Value": {"Ref": "AWS::StackName"}
+          },
+          {
+            "Key": "Network",
+            "Value": "Public"
+          }
+        ]
+      }
+    },
+
+    "PublicRouteTable1": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {"Ref": "VPCGroupalia"},
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "PublicRouteTable1"
+          },
+          {
+            "Key": "Application",
+            "Value": {"Ref": "AWS::StackName"}
+          },
+          {
+            "Key": "Network",
+            "Value": "Public"
+          }
+        ]
+      }
+    },
+
+    "PublicRouteTable2": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {"Ref": "VPCGroupalia"},
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "PublicRouteTable2"
+          },
+          {
+            "Key": "Application",
+            "Value": {"Ref": "AWS::StackName"}
+          },
+          {
+            "Key": "Network",
+            "Value": "Public"
+          }
+        ]
+      }
+    },
+
+    "PublicRoute1": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": {"Ref": "PublicRouteTable1"},
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {"Ref": "InternetGatewayA"}
+      }
+    },
+
+    "PublicRoute2": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": {"Ref": "PublicRouteTable2"},
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {"Ref": "InternetGatewayA"}
+      }
+    },
+
+    "PublicSubnetRouteTableAssociation1": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {"Ref": "PublicSubnet1"},
+        "RouteTableId": {"Ref": "PublicRouteTable1"}
+      }
+    },
+
+    "PublicSubnetRouteTableAssociation2": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {"Ref": "PublicSubnet2"},
+        "RouteTableId": {"Ref": "PublicRouteTable2"}
+      }
+    },
+
+    "PublicNetworkAcl": {
+      "Type": "AWS::EC2::NetworkAcl",
+
+      "Properties": {
+        "VpcId": {"Ref": "VPCGroupalia"},
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "PublicNetworkAcl"
+          },
+          {
+            "Key": "Application",
+            "Value": {"Ref": "AWS::StackName"}
+          },
+          {
+            "Key": "Network",
+            "Value": "Public"
+          }
+        ]
+      }
+    },
+
+    "InboundPublicNetworkAclEntry": {
+      "Type": "AWS::EC2::NetworkAclEntry",
+
+      "Properties": {
+        "NetworkAclId": {"Ref": "PublicNetworkAcl"},
+        "RuleNumber": "100",
+        "Protocol": "6",
+        "RuleAction": "allow",
+        "Egress": "false",
+        "CidrBlock": "0.0.0.0/0",
+        "PortRange": {
+          "From": "0",
+          "To": "65535"
+        }
+      }
+
+    },
+
+    "OutBoundPublicNetworkAclEntry": {
+      "Type": "AWS::EC2::NetworkAclEntry",
+      "Properties": {
+        "NetworkAclId": {"Ref": "PublicNetworkAcl"},
+        "RuleNumber": "101",
+        "Protocol": "6",
+        "RuleAction": "allow",
+        "Egress": "true",
+        "CidrBlock": "0.0.0.0/0",
+        "PortRange": {
+          "From": "0",
+          "To": "65535"
+        }
+      }
+    },
+
+    "PublicSubnetNetworkAclAssociation1": {
+      "Type": "AWS::EC2::SubnetNetworkAclAssociation",
+      "Properties": {
+        "SubnetId": {"Ref": "PublicSubnet1"},
+        "NetworkAclId": {"Ref": "PublicNetworkAcl"}
+      }
+    },
+
+    "PublicSubnetNetworkAclAssociation2": {
+      "Type": "AWS::EC2::SubnetNetworkAclAssociation",
+      "Properties": {
+        "SubnetId": {"Ref": "PublicSubnet2"},
+        "NetworkAclId": {"Ref": "PublicNetworkAcl"}
+      }
+    },
+
+    "PrivateSubnet1": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {"Ref": "VPCGroupalia"},
+        "CidrBlock": {"Ref": "PrivateSubnetIpCidrBlock1"},
+        "AvailabilityZone": {
+          "Fn::FindInMap": [
+            "Region2AZ",
+            {"Ref": "AWS::Region"},
+            "AZ1"
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "PrivateSubnet1"
+          },
+          {
+            "Key": "Application",
+            "Value": {"Ref": "AWS::StackName"}
+          },
+          {
+            "Key": "Network",
+            "Value": "Private"
+          }
+        ]
+      }
+    },
+
+    "PrivateSubnet2": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {"Ref": "VPCGroupalia"},
+        "CidrBlock": {"Ref": "PrivateSubnetIpCidrBlock2"},
+        "AvailabilityZone": {
+          "Fn::FindInMap": [
+            "Region2AZ",
+            {"Ref": "AWS::Region"},
+            "AZ2"
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "PrivateSubnet2"
+          },
+          {
+            "Key": "Application",
+            "Value": {"Ref": "AWS::StackName"}
+          },
+          {
+            "Key": "Network",
+            "Value": "Private"
+          }
+        ]
+      }
+    },
+
+    "PrivateRouteTable1": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {"Ref": "VPCGroupalia"},
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "PrivateRouteTable1"
+          },
+          {
+            "Key": "Application",
+            "Value": {"Ref": "AWS::StackName"}
+          },
+          {
+            "Key": "Network",
+            "Value": "Private"
+          }
+        ]
+      }
+    },
+
+    "PrivateRouteTable2": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {"Ref": "VPCGroupalia"},
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "PrivateRouteTable2"
+          },
+          {
+            "Key": "Application",
+            "Value": {"Ref": "AWS::StackName"}
+          },
+          {
+            "Key": "Network",
+            "Value": "Private"
+          }
+        ]
+      }
+    },
+
+    "PrivateNatRoute1": {
+      "Type": "AWS::EC2::Route",
+
+      "Properties": {
+        "RouteTableId": {"Ref": "PrivateRouteTable1"},
+
+        "DestinationCidrBlock": "0.0.0.0/0",
+
+        "InstanceId": {"Ref": "NatInstance1"}
+      }
+    },
+
+    "PrivateNatRoute2": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": {"Ref": "PrivateRouteTable2"},
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "InstanceId": {"Ref": "NatInstance2"}
+      }
+    },
+
+    "PrivateSubnetRouteTableAssociation1": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {"Ref": "PrivateSubnet1"},
+        "RouteTableId": {"Ref": "PrivateRouteTable1"}
+      }
+    },
+
+    "PrivateSubnetRouteTableAssociation2": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {"Ref": "PrivateSubnet2"},
+        "RouteTableId": {"Ref": "PrivateRouteTable2"}
+      }
+    },
+
+    "PrivateNetworkAcl": {
+      "Type": "AWS::EC2::NetworkAcl",
+      "Properties": {
+        "VpcId": {"Ref": "VPCGroupalia"},
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "PrivateNetworkAcl"
+          },
+          {
+            "Key": "Application",
+            "Value": {"Ref": "AWS::StackName"}
+          },
+          {
+            "Key": "Network",
+            "Value": "Private"
+          }
+        ]
+      }
+    },
+
+    "InboundPrivateNetworkAclEntry": {
+      "Type": "AWS::EC2::NetworkAclEntry",
+      "Properties": {
+        "NetworkAclId": {"Ref": "PrivateNetworkAcl"},
+        "RuleNumber": "100",
+        "Protocol": "6",
+        "RuleAction": "allow",
+        "Egress": "false",
+        "CidrBlock": "0.0.0.0/0",
+        "PortRange": {
+          "From": "0",
+          "To": "65535"
+        }
+      }
+    },
+
+    "OutBoundPrivateNetworkAclEntry": {
+      "Type": "AWS::EC2::NetworkAclEntry",
+      "Properties": {
+        "NetworkAclId": {"Ref": "PrivateNetworkAcl"},
+        "RuleNumber": "100",
+        "Protocol": "6",
+        "RuleAction": "allow",
+        "Egress": "true",
+        "CidrBlock": "0.0.0.0/0",
+        "PortRange": {
+          "From": "0",
+          "To": "65535"
+        }
+      }
+    },
+
+    "PrivateSubnetNetworkAclAssociation1": {
+      "Type": "AWS::EC2::SubnetNetworkAclAssociation",
+      "Properties": {
+        "SubnetId": {"Ref": "PrivateSubnet1"},
+        "NetworkAclId": {"Ref": "PrivateNetworkAcl"}
+      }
+    },
+
+    "PrivateSubnetNetworkAclAssociation2": {
+      "Type": "AWS::EC2::SubnetNetworkAclAssociation",
+      "Properties": {
+        "SubnetId": {"Ref": "PrivateSubnet2"},
+        "NetworkAclId": {"Ref": "PrivateNetworkAcl"}
+      }
+    },
+
+    "NatInstance1": {
+      "Type": "AWS::EC2::Instance",
+
+      "Properties": {
+        "KeyName": {"Ref": "KeyName"},
+
+        "ImageId": {
+          "Fn::FindInMap": [
+            "AWSRegionArch2AMI",
+            {"Ref": "AWS::Region"},
+
+            {
+              "Fn::FindInMap": [
+                "AWSInstanceType2Arch",
+                {"Ref": "NatInstanceType"},
+                "Arch"
+              ]
+            }
+          ]
+        },
+
+        "InstanceType": {"Ref": "NatInstanceType"},
+
+        "NetworkInterfaces": [
+          {
+            "NetworkInterfaceId": {"Ref": "NatInstanceInterface11"},
+            "DeviceIndex": "0"
+          }
+        ],
+
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "NAT Instance1"
+          }
+        ]
+      }
+    },
+
+    "NatInstance2": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "KeyName": {"Ref": "KeyName"},
+        "ImageId": {
+          "Fn::FindInMap": [
+            "AWSRegionArch2AMI",
+            {"Ref": "AWS::Region"},
+            {
+              "Fn::FindInMap": [
+                "AWSInstanceType2Arch",
+                {"Ref": "NatInstanceType"},
+                "Arch"
+              ]
+            }
+          ]
+        },
+        "InstanceType": {"Ref": "NatInstanceType"},
+        "NetworkInterfaces": [
+          {
+            "NetworkInterfaceId": {"Ref": "NatInstanceInterface21"},
+            "DeviceIndex": "0"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "NAT Instance2"
+          }
+        ]
+      }
+    },
+
+    "NatInstanceInterface11": {
+      "Type": "AWS::EC2::NetworkInterface",
+      "Properties": {
+        "SubnetId": {"Ref": "PublicSubnet1"},
+        "Description": "Interface for control traffic such as SSH",
+        "GroupSet": [{"Ref": "NatInstanceSecurityGroup"}],
+        "SourceDestCheck": "false",
+        "Tags": [
+          {
+            "Key": "Network",
+            "Value": "Control"
+          }
+        ]
+      }
+    },
+
+    "NatInstanceInterface21": {
+      "Type": "AWS::EC2::NetworkInterface",
+      "Properties": {
+        "SubnetId": {"Ref": "PublicSubnet2"},
+        "Description": "Interface for control traffic such as SSH",
+        "GroupSet": [{"Ref": "NatInstanceSecurityGroup"}],
+        "SourceDestCheck": "false",
+        "Tags": [
+          {
+            "Key": "Network",
+            "Value": "Control"
+          }
+        ]
+      }
+    },
+
+    "NatInstanceIpAddress1": {
+      "Type": "AWS::EC2::EIP",
+      "Properties": {
+        "Domain": "vpc"
+      }
+    },
+
+    "NatInstanceIpAddress2": {
+      "Type": "AWS::EC2::EIP",
+      "Properties": {
+        "Domain": "vpc"
+      }
+    },
+
+    "AssociateNatInstanceIpAddress1": {
+      "Type": "AWS::EC2::EIPAssociation",
+      "Properties": {
+        "AllocationId": {
+          "Fn::GetAtt": [
+            "NatInstanceIpAddress1",
+            "AllocationId"
+          ]
+        },
+        "NetworkInterfaceId": {"Ref": "NatInstanceInterface11"}
+      }
+    },
+
+    "AssociateNatInstanceIpAddress2": {
+      "Type": "AWS::EC2::EIPAssociation",
+      "Properties": {
+        "AllocationId": {
+          "Fn::GetAtt": [
+            "NatInstanceIpAddress2",
+            "AllocationId"
+          ]
+        },
+        "NetworkInterfaceId": {"Ref": "NatInstanceInterface21"}
+      }
+    },
+
+    "NatInstanceSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+
+      "Properties": {
+        "GroupDescription": "Enable NAT for instances in private subnets",
+
+        "VpcId": {"Ref": "VPCGroupalia"},
+
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "0",
+            "ToPort": "65535",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ],
+
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "0",
+            "ToPort": "65535",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ]
+      }
+    },
+
+    "WebServerASGroup": {
+      "Type": "AWS::AutoScaling::AutoScalingGroup",
+
+      "DependsOn": [
+        "PrivateNatRoute1",
+        "PublicRoute1"
+      ],
+
+      "Properties": {
+        "AvailabilityZones": [
+          {
+            "Fn::FindInMap": [
+              "Region2AZ",
+              {"Ref": "AWS::Region"},
+              "AZ1"
+            ]
+          }
+        ],
+
+        "LaunchConfigurationName": {"Ref": "LaunchConfigWS"},
+
+        "MinSize": "6",
+
+        "MaxSize": "18",
+
+        "HealthCheckType": "EC2",
+
+        "VPCZoneIdentifier": [{"Ref": "PrivateSubnet1"}],
+
+        "LoadBalancerNames": [{"Ref": "ElasticLoadBalancer"}]
+      }
+    },
+
+    "LaunchConfigWS": {
+      "Type": "AWS::AutoScaling::LaunchConfiguration",
+
+      "Metadata": {
+        "Comment": "Install a HTTP Server on AS Group - LaunchConfigWS",
+
+        "AWS::CloudFormation::Init": {
+          "config": {
+            "packages": {
+              "yum": {
+                "httpd": []
+              }
+            },
+
+            "files": {
+              "/var/www/html/index.html": {
+                "content": {
+                  "Fn::Join": [
+                    "\n",
+                    [
+                      "<img src=\"https://s3-ap-southeast-2.amazonaws.com/VPCGroupalia/polarseven_logo_transparentbackground_gmail3.png\" alt=\"PolarSeven Logo\"/>",
+                      "<h2>Congratulations, the VPC Groupalia was launched successfully.</h2>"
+                    ]
+                  ]
+                },
+                "mode": "000644",
+                "owner": "root",
+                "group": "root"
+              },
+
+              "/etc/cfn/cfn-hup.conf": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "[main]\n",
+                      "stack=",
+                      {"Ref": "AWS::StackId"},
+                      "\n",
+                      "region=",
+                      {"Ref": "AWS::Region"},
+                      "\n"
+                    ]
+                  ]
+                },
+                "mode": "000400",
+                "owner": "root",
+                "group": "root"
+              },
+
+              "/etc/cfn/hooks.d/cfn-auto-reloader.conf": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "[cfn-auto-reloader-hook]\n",
+                      "triggers=post.update\n",
+                      "path=Resources.LaunchConfig.Metadata.AWS::CloudFormation::Init\n",
+                      "action=/opt/aws/bin/cfn-init -v ",
+                      "         --stack ",
+                      {"Ref": "AWS::StackName"},
+                      "         --resource LaunchConfigWS ",
+                      "         --region ",
+                      {"Ref": "AWS::Region"},
+                      "\n",
+                      "runas=root\n"
+                    ]
+                  ]
+                },
+                "mode": "000400",
+                "owner": "root",
+                "group": "root"
+              }
+
+            },
+
+            "services": {
+              "sysvinit": {
+                "httpd": {
+                  "enabled": "true",
+                  "ensureRunning": "true"
+                },
+
+                "cfn-hup": {
+                  "enabled": "true",
+                  "ensureRunning": "true",
+                  "files": [
+                    "/etc/cfn/cfn-hup.conf",
+                    "/etc/cfn/hooks.d/cfn-auto-reloader.conf"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+
+      "Properties": {
+        "KeyName": {"Ref": "KeyName"},
+
+        "ImageId": {
+          "Fn::FindInMap": [
+            "AWSRegionArch2AMIWeb",
+            {"Ref": "AWS::Region"},
+            {
+              "Fn::FindInMap": [
+                "AWSInstanceType2ArchWeb",
+                {"Ref": "WebServerInstanceType"},
+                "Arch"
+              ]
+            }
+          ]
+        },
+
+        "SecurityGroups": [
+          {
+            "Fn::GetAtt": [
+              "InstanceSecurityGroup",
+              "GroupId"
+            ]
+          }
+        ],
+
+        "InstanceType": {"Ref": "WebServerInstanceType"},
+
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "",
+              [
+                "#!/bin/bash -xe\n",
+                "yum update -y aws-cfn-bootstrap\n",
+                "ln -sf /usr/share/zoneinfo/Europe/Madrid /etc/localtime\n",
+                "/opt/aws/bin/cfn-init -v ",
+                "         --stack ",
+                {"Ref": "AWS::StackName"},
+                "         --resource LaunchConfigWS ",
+                "         --region ",
+                {"Ref": "AWS::Region"},
+                "\n",
+                "/opt/aws/bin/cfn-signal -e $? ",
+                "         --stack ",
+                {"Ref": "AWS::StackName"},
+                "         --resource WebServerASGroup ",
+                "         --region ",
+                {"Ref": "AWS::Region"},
+                "\n"
+              ]
+            ]
+          }
+        }
+      }
+    },
+
+    "ElasticLoadBalancer": {
+      "Type": "AWS::ElasticLoadBalancing::LoadBalancer",
+
+      "Properties": {
+        "Subnets": [{"Ref": "PublicSubnet1"}],
+
+        "SecurityGroups": [
+          {
+            "Fn::GetAtt": [
+              "InstanceSecurityGroup",
+              "GroupId"
+            ]
+          }
+        ],
+        "Listeners": [
+          {
+            "LoadBalancerPort": "80",
+            "InstancePort": "80",
+            "Protocol": "http"
+          }
+        ],
+        "HealthCheck": {
+          "Target": "HTTP:80/",
+          "HealthyThreshold": "3",
+          "UnhealthyThreshold": "5",
+          "Interval": "30",
+          "Timeout": "5"
+        }
+      }
+    },
+
+    "EBSVolumeDB1": {
+      "Type": "AWS::EC2::Volume",
+
+      "Properties": {
+        "AvailabilityZone": "eu-west-1a",
+        "Size": "50",
+        "Tags": [
+          { "Key": "EBSVolumeInfo",
+            "Value": "EBS Volume 50G"
+          }
+        ]
+      }
+    },
+
+    "InstanceSecurityGroup": {
+        "Type": "AWS::EC2::SecurityGroup",
+
+        "Properties": {
+          "GroupDescription": "Enable SSH access and HTTP from the load balancer only",
+
+          "VpcId": {"Ref": "VPCGroupalia"},
+
+          "SecurityGroupIngress": [
+            {
+              "IpProtocol": "tcp",
+              "FromPort": "22",
+              "ToPort": "22",
+              "CidrIp": {"Ref": "SSHLocation"}
+            },
+            {
+              "IpProtocol": "tcp",
+              "FromPort": "80",
+              "ToPort": "80",
+              "CidrIp": "0.0.0.0/0"
+            }
+          ]
+        }
+      },
+
+    "DnsRecord": {
+        "Type": "AWS::Route53::RecordSet",
+
+        "Properties": {
+          "HostedZoneName": {
+            "Fn::Join": [
+              "",
+              [
+                {"Ref": "DnsZone"},
+                "."
+              ]
+            ]
+          },
+
+          "Comment": "VPC Groupalia",
+
+          "Name": {
+            "Fn::Join": [
+              "",
+              [
+                {"Ref": "DnsPrefix"},
+                ".",
+                {"Ref": "DnsZone"},
+                "."
+              ]
+            ]
+          },
+          "Type": "CNAME",
+          "TTL": "900",
+          "ResourceRecords": [
+            {
+              "Fn::GetAtt": [
+                "ElasticLoadBalancer",
+                "DNSName"
+              ]
+            }
+          ]
+        }
+      }
+
+  },
+
+  "Outputs": {
+
+      "NatInstancePublicIP1": {
+        "Description": "Public Elastic IP address of the NAT instance1.",
+        "Value": {"Ref": "NatInstanceIpAddress1"}
+      },
+
+      "NatInstancePublicIP2": {
+        "Description": "Public Elastic IP address of the NAT instance2.",
+        "Value": {"Ref": "NatInstanceIpAddress2"}
+      },
+
+      "URL": {
+        "Description": "The URL of the website",
+        "Value": {
+          "Fn::Join": [
+            "",
+            [
+              "http://",
+              {
+                "Fn::GetAtt": [
+                  "ElasticLoadBalancer",
+                  "DNSName"
+                ]
+              }
+            ]
+          ]
+        }
+      },
+
+      "DnsAddress": {
+        "Description": "The DNS of the website",
+        "Value": {
+          "Fn::Join": [
+            "",
+            [
+              "http://",
+              {"Ref": "DnsRecord"}
+            ]
+          ]
+        }
+      }
+    }
+
+  }
